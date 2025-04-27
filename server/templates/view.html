@@ -1,0 +1,7 @@
+<!doctype html>
+<h1>{{ rec.filename }}</h1>
+<audio controls src="{{ url_for('get_audio', filename=rec.filename) }}"></audio>
+<h2>Summary</h2>
+<pre>{{ rec.summary }}</pre>
+<h2>Transcript</h2>
+<pre>{{ rec.transcript }}</pre>

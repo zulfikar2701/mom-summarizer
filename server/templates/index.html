@@ -1,0 +1,12 @@
+<!doctype html>
+<h1>Recordings</h1>
+<a href="{{ url_for('upload') }}">Upload New</a>
+<ul>
+{% for rec in recordings %}
+  <li>
+    <a href="{{ url_for('view', id=rec.id) }}">
+      {{ rec.timestamp }} – {{ rec.filename }}
+    </a>
+  </li>
+{% endfor %}
+</ul>

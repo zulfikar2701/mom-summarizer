@@ -1,2 +1,4 @@
 /summary-venv/
 /server/__pycache__
+recordings/2025*.mp3
+server/data.db

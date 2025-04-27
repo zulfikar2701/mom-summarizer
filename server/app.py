@@ -1,4 +1,5 @@
 import os
+import time
 from flask import Flask, request, redirect, url_for, render_template, send_from_directory
 from flask_login import login_required
 from datetime import datetime
@@ -9,7 +10,7 @@ from transcription import transcribe_audio
 from summarization import summarize_text
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, template_folder="templates")
     app.config.update(
       SECRET_KEY="devkey",
       SQLALCHEMY_DATABASE_URI="sqlite:///data.db",
@@ -31,27 +32,32 @@ def create_app():
         recs = Recording.query.order_by(Recording.timestamp.desc()).all()
         return render_template("index.html", recordings=recs)
 
-    @app.route("/upload", methods=["GET","POST"])
+    @app.route("/upload", methods=["GET", "POST"])
     @login_required
     def upload():
-        if request.method=="POST":
+        if request.method == "POST":
             f = request.files["audio"]
-            name = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{f.filename}"
-            path = os.path.join(app.config["UPLOAD_FOLDER"], name)
+            timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+            filename = f"{timestamp}_{f.filename}"
+            path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
             f.save(path)
 
+            # Measure end-to-end processing time
+            t0 = time.time()
             txt = transcribe_audio(path)
             summary = summarize_text(txt)
+            print(f"[+] Total processing (transcribe+summarize): {time.time() - t0:.2f}s")
 
             rec = Recording(
-                filename=name,
+                filename=filename,
                 transcript=txt,
                 summary=summary,
                 timestamp=datetime.utcnow()
             )
             db.session.add(rec)
             db.session.commit()
-            return redirect(url_for("app.index"))
+            return redirect(url_for("index"))
+
         return render_template("upload.html")
 
     @app.route("/recordings/<filename>")
@@ -67,5 +73,7 @@ def create_app():
 
     return app
 
-if __name__=="__main__":
-    create_app().run(host="0.0.0.0", port=8000)
+if __name__ == "__main__":
+    app = create_app()
+    app.config["DEBUG"] = True
+    app.run(host="0.0.0.0", port=8000)

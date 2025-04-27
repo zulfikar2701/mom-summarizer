@@ -4,7 +4,7 @@ Flask-Login==0.6.3
 Flask-SQLAlchemy==2.5.1
 SQLAlchemy==1.4.48
 protobuf>=3.19.0
-numpy<2.0
+numpy==1.23.5
 openai-whisper
 sentencepiece
 transformers==4.35.0

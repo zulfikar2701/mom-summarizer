@@ -18,7 +18,7 @@ def login():
         user = User.query.filter_by(username=u).first()
         if user and check_password_hash(user.password, p):
             login_user(user)
-            return redirect(url_for("app.index"))
+            return redirect(url_for("index"))
         flash("Bad creds")
     return render_template("login.html")
 
