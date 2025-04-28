@@ -5,19 +5,23 @@ import whisper.audio as wa
 
 os.environ["PATH"] = r"C:\ProgramData\chocolatey\bin" + os.pathsep + os.environ.get("PATH", "")
 
-model = whisper.load_model("small")  # choose "base" or "medium" if you have more CPU power
+model = whisper.load_model("turbo")  # choose "base" or "medium" if you have more CPU power
 
 def transcribe_audio(path: str) -> str:
-    # 1) Load audio and measure how long that takes
+    # load  duration log (unchanged)
     start_load = time.time()
     audio = wa.load_audio(path)
-    rec_dur = len(audio) / wa.SAMPLE_RATE  # SAMPLE_RATE == 16_000
-    print(f"[+] Recording duration: {rec_dur:.2f}s (loaded in {time.time() - start_load:.2f}s)")
+    rec_dur = len(audio) / wa.SAMPLE_RATE
+    print(f"[] Recording duration: {rec_dur:.2f}s (loaded in {time.time() - start_load:.2f}s)")
 
-    # 2) Transcribe and measure time
+    # now force Whisper to transcribe in Indonesian
     start_trans = time.time()
-    result = model.transcribe(path)
+    result = model.transcribe(
+        path,
+        language="id",      # ← force output to Bahasa Indonesia
+        task="transcribe"   # ← default, but explicit is clearer
+    )
     trans_time = time.time() - start_trans
-    print(f"[+] Transcription took: {trans_time:.2f}s")
+    print(f"[] Transcription took: {trans_time:.2f}s")
 
     return result["text"]
