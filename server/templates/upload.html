@@ -1,6 +1,21 @@
 <!doctype html>
-<h1>Meeting recorder</h1>
-<form method="post" enctype="multipart/form-data">
-  <input type="file" name="audio" accept=".mp3" required><br><br>
-  <button type="submit">Summarize</button>
-</form>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Upload Audio</title>
+  <link href="{{ url_for('static', filename='css/output.css') }}" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style> html { font-family: 'Inter', sans-serif; } </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+  <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+    <h1 class="text-xl font-bold mb-6 text-gray-800 text-center">Upload a Meeting Audio</h1>
+    <form method="post" enctype="multipart/form-data" class="space-y-4">
+      <input type="file" name="audio" accept=".mp3" required class="block w-full border border-gray-300 p-2 rounded-lg">
+      <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg shadow">
+        🔄 Transcribe & Summarize
+      </button>
+    </form>
+  </div>
+</body>
+</html>

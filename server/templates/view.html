@@ -1,13 +1,35 @@
 <!doctype html>
-<h1>{{ rec.filename }}</h1>
-<audio controls src="{{ url_for('get_audio', filename=rec.filename) }}"></audio>
-<h2>Rangkuman</h2>
-<ul>
-  {% for line in rec.summary.splitlines() %}
-    {% if line.strip() %}
-      <li>{{ line.lstrip('- ').strip() }}</li>
-    {% endif %}
-  {% endfor %}
-</ul>
-<h2>Transcript</h2>
-<pre>{{ rec.transcript }}</pre>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ rec.filename }}</title>
+  <link href="{{ url_for('static', filename='css/output.css') }}" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style> html { font-family: 'Inter', sans-serif; } </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-6">
+  <div class="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+    <h1 class="text-xl font-bold text-gray-800 mb-4">{{ rec.filename }}</h1>
+    <audio controls class="w-full mb-6">
+      <source src="{{ url_for('get_audio', filename=rec.filename) }}" type="audio/mp3">
+      Your browser does not support the audio element.
+    </audio>
+
+    <div class="mb-6">
+      <h2 class="text-lg font-semibold text-gray-700 mb-2">📌 Summary</h2>
+      <ul class="list-disc pl-5 space-y-1 text-sm text-gray-800">
+        {% for line in rec.summary.splitlines() %}
+          {% if line.strip() %}
+            <li>{{ line.lstrip('- ').strip() }}</li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div>
+      <h2 class="text-lg font-semibold text-gray-700 mb-2">📝 Transcript</h2>
+      <pre class="bg-gray-100 text-sm p-4 rounded overflow-x-auto text-gray-800">{{ rec.transcript }}</pre>
+    </div>
+  </div>
+</body>
+</html>

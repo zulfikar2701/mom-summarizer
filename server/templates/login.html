@@ -1,14 +1,27 @@
 <!doctype html>
-<title>Log In</title>
-<h1>Log In</h1>
-<form method="post">
-  <label>
-    Username
-    <input type="text" name="username" required>
-  </label><br><br>
-  <label>
-    Password
-    <input type="password" name="password" required>
-  </label><br><br>
-  <button type="submit">Log In</button>
-</form>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+    <link href="{{ url_for('static', filename='css/output.css') }}" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="min-h-screen flex items-center justify-center bg-gray-100">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-96">
+        <h1 class="text-2xl font-bold mb-6 text-center">Log In</h1>
+        <form method="post" class="space-y-4">
+            <div>
+                <label class="block mb-1 text-sm font-medium">Username</label>
+                <input type="text" name="username" required class="w-full px-3 py-2 border rounded-lg">
+            </div>
+            <div>
+                <label class="block mb-1 text-sm font-medium">Password</label>
+                <input type="password" name="password" required class="w-full px-3 py-2 border rounded-lg">
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+                Log In
+            </button>
+        </form>
+    </div>
+</body>
+</html>
