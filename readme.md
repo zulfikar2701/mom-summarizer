@@ -1,0 +1,1 @@
+1. Download tailwind library and place it in server to use tailwind css
