@@ -42,27 +42,37 @@ class Recording(db.Model):
 from transcription import process_recording  # noqa: E402  (import after db)
 
 # ---------- HTML routes ----------
-@app.route("/")
-def index():
-    recs = Recording.query.order_by(Recording.created_at.desc()).all()
-    return render_template("index.html", recs=recs)
+@app.get("/upload")                       # endpoint = 'upload'
+def upload():
+    """Simple Tailwind-styled file-chooser page."""
+    return """
+    <form action="/upload" method="post" enctype="multipart/form-data"
+          class="flex flex-col gap-4 max-w-md mx-auto mt-10">
+        <input type="file" name="file" accept=".mp3" class="border p-2 rounded">
+        <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+            Send & transcribe
+        </button>
+    </form>
+    """
 
-
-@app.route("/upload", methods=["POST"])
-def upload_form():
-    file = request.files["file"]
-    if not file.filename.lower().endswith(".mp3"):
+@app.post("/upload")                      # endpoint = 'upload_post'
+def upload_post():
+    file = request.files.get("file")
+    if not file or not file.filename.lower().endswith(".mp3"):
         return "Only .mp3 files are accepted", 400
     dest = UPLOAD_DIR / secure_filename(file.filename)
     file.save(dest)
     process_recording(dest)
     return redirect(url_for("index"))
 
+@app.get("/")
+def index():
+    recs = Recording.query.order_by(Recording.created_at.desc()).all()
+    return render_template("index.html", recs=recs)
 
-@app.route("/recordings/<path:fname>")
+@app.get("/recordings/<path:fname>")
 def serve_audio(fname):
     return send_from_directory(app.config["UPLOAD_FOLDER"], fname)
-
 
 # ---------- JSON API ----------
 API_KEY = os.getenv("API_KEY")  # optional
