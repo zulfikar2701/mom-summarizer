@@ -10,7 +10,7 @@ torch.backends.cuda.enable_math_sdp(True)
 import whisper
 from transformers import pipeline
 
-from models import db, Recording   # models are defined in app.py
+from app import db, Recording   # models are defined in app.py
 
 # ---------- model loading (done once at startup) ----------
 WHISPER_MODEL_NAME = os.getenv("WHISPER_MODEL", "base")
@@ -54,8 +54,7 @@ def process_recording(filepath: Path) -> Recording:
         filename=filepath.name,
         transcript=transcript,
         summary=summary,
-        created_at=datetime.utcnow(),
-    )
+    )   # created_at will be auto-filled
     db.session.add(rec)
     db.session.commit()
     return rec
