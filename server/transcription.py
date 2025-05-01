@@ -1,60 +1,59 @@
-import os
-from datetime import datetime
-from pathlib import Path
+# server/transcription.py
+"""
+Whisper → transcript → Indonesian T5 summary.
+Called from app.py for both form and API uploads.
+"""
 
+# --- optional: work-around PyTorch flash-attention bug on CPU ---
 import torch
 torch.backends.cuda.enable_flash_sdp(False)
 torch.backends.cuda.enable_mem_efficient_sdp(False)
 torch.backends.cuda.enable_math_sdp(True)
 
+# --- stdlib / third-party ---
+from pathlib import Path
 import whisper
 from transformers import pipeline
 
-from app import db, Recording   # models are defined in app.py
+# --- our database & model ---
+from models import db, Recording            # SINGLE source of truth
 
-# ---------- model loading (done once at startup) ----------
-WHISPER_MODEL_NAME = os.getenv("WHISPER_MODEL", "base")
-whisper_model = whisper.load_model(WHISPER_MODEL_NAME)
-
-SUMMARIZER_ID = os.getenv(
-    "SUMMARIZER_ID", "cahya/t5-base-indonesian-summarization-cased"
-)
+# --- model loading (once at import time) ---
+WHISPER_MODEL = whisper.load_model("base")  # or use env var
+SUMMARIZER_ID = "cahya/t5-base-indonesian-summarization-cased"
 summarizer = pipeline(
     "summarization",
     model=SUMMARIZER_ID,
     tokenizer=SUMMARIZER_ID,
-    device=-1,            # CPU-only for the prototype
+    device=-1,
     use_fast=False,
 )
 
-# ---------- helper functions ----------
-def transcribe_audio(filepath: Path) -> str:
-    """Return plain-text transcript produced by Whisper."""
-    result = whisper_model.transcribe(str(filepath))
+# --- helper functions ---
+def transcribe_audio(path: Path) -> str:
+    """Return plaintext transcript produced by Whisper."""
+    result = WHISPER_MODEL.transcribe(str(path))
     return result["text"].strip()
 
-
 def summarize_text(text: str) -> str:
-    """Chunk the transcript and build a bullet-point summary."""
-    chunks = [text[i : i + 800] for i in range(0, len(text), 800)]
-    bullets = []
-    for c in chunks:
-        s = summarizer(c, max_length=120, min_length=30, do_sample=False)[0][
-            "summary_text"
-        ]
-        bullets.append(f"- {s.strip()}")
+    chunks  = [text[i : i + 800] for i in range(0, len(text), 800)]
+    bullets = [
+        "- " + summarizer(c, max_length=120, min_length=30, do_sample=False)[0]["summary_text"].strip()
+        for c in chunks
+    ]
     return "\n".join(bullets)
 
+def process_recording(path: Path) -> Recording:
+    """Full pipeline: transcribe, summarise, write DB row, return it."""
+    transcript = transcribe_audio(path)
+    summary    = summarize_text(transcript)
 
-def process_recording(filepath: Path) -> Recording:
-    """Full pipeline: Whisper → summary → save row → return row."""
-    transcript = transcribe_audio(filepath)
-    summary = summarize_text(transcript)
     rec = Recording(
-        filename=filepath.name,
-        transcript=transcript,
-        summary=summary,
-    )   # created_at will be auto-filled
+        filename   = path.name,
+        transcript = transcript,
+        summary    = summary,
+        # created_at auto-filled by column default
+    )
     db.session.add(rec)
     db.session.commit()
     return rec

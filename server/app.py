@@ -1,22 +1,15 @@
 import os
 from datetime import datetime
 from pathlib import Path
-
-from flask import (
-    Flask,
-    render_template,
-    request,
-    redirect,
-    url_for,
-    send_from_directory,
-    jsonify,
-    abort,
-)
-from flask_sqlalchemy import SQLAlchemy
+from flask import (Flask, render_template, request, redirect,
+                   url_for, send_from_directory, jsonify, abort)
 from werkzeug.utils import secure_filename
 
+from models import db, Recording               # ← single source of truth
+from transcription import process_recording    # noqa: E402
+
 # ---------- basic Flask + SQLite setup ----------
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR   = Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "recordings"
 UPLOAD_DIR.mkdir(exist_ok=True)
 
@@ -28,30 +21,17 @@ app.config.update(
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
 )
 
-db = SQLAlchemy(app)
-
-# ---------- models ----------
-class Recording(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(256), nullable=False)
-    transcript = db.Column(db.Text)
-    summary = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-# ---------- business logic ----------
-from transcription import process_recording  # noqa: E402  (import after db)
+db.init_app(app)                               # DON’T create a new SQLAlchemy()
 
 # ---------- HTML routes ----------
 @app.get("/")
 def index():
     recs = Recording.query.order_by(Recording.created_at.desc()).all()
-    return render_template("index.html",
-                           recs=recs,
+    return render_template("index.html", recs=recs,
                            current_year=datetime.utcnow().year)
 
-@app.get("/upload")                       # endpoint = 'upload'
+@app.get("/upload")
 def upload():
-    """Simple Tailwind-styled file-chooser page."""
     return """
     <form action="/upload" method="post" enctype="multipart/form-data"
           class="flex flex-col gap-4 max-w-md mx-auto mt-10">
@@ -62,7 +42,7 @@ def upload():
     </form>
     """
 
-@app.post("/upload")                      # endpoint = 'upload_post'
+@app.post("/upload")
 def upload_post():
     file = request.files.get("file")
     if not file or not file.filename.lower().endswith(".mp3"):
@@ -77,18 +57,15 @@ def serve_audio(fname):
     return send_from_directory(app.config["UPLOAD_FOLDER"], fname)
 
 # ---------- JSON API ----------
-API_KEY = os.getenv("API_KEY")  # optional
+API_KEY = os.getenv("API_KEY")      # optional
 
-@app.route("/api/v1/recordings", methods=["POST"])
+@app.post("/api/v1/recordings")
 def api_upload():
-    # header-based key (swap for JWT/OAuth when you like)
     if API_KEY and request.headers.get("X-API-Key") != API_KEY:
-        abort(401, description="bad or missing X-API-Key")
+        abort(401, "bad or missing X-API-Key")
 
-    if "file" not in request.files:
-        return jsonify(error="missing file field"), 400
-    f = request.files["file"]
-    if not f.filename.lower().endswith(".mp3"):
+    f = request.files.get("file")
+    if not f or not f.filename.lower().endswith(".mp3"):
         return jsonify(error="only .mp3 accepted"), 400
 
     dest = UPLOAD_DIR / secure_filename(f.filename)
@@ -96,8 +73,7 @@ def api_upload():
     rec = process_recording(dest)
     return jsonify(id=rec.id), 201
 
-
-@app.route("/api/v1/recordings/<int:rec_id>")
+@app.get("/api/v1/recordings/<int:rec_id>")
 def api_get(rec_id):
     rec = Recording.query.get_or_404(rec_id)
     return jsonify(
@@ -107,7 +83,6 @@ def api_get(rec_id):
         summary=rec.summary,
         created_at=rec.created_at.isoformat() + "Z",
     )
-
 
 # ---------- bootstrap ----------
 if __name__ == "__main__":
