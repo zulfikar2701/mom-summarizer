@@ -5,3 +5,5 @@ server/data.db
 1.htm
 repomix-output.xml
 server/tailwind.exe
+server/db.sqlite3
+server/recordings/pssi-pers.mp3

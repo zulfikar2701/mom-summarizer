@@ -45,7 +45,9 @@ from transcription import process_recording  # noqa: E402  (import after db)
 @app.get("/")
 def index():
     recs = Recording.query.order_by(Recording.created_at.desc()).all()
-    return render_template("index.html", recs=recs)
+    return render_template("index.html",
+                           recs=recs,
+                           current_year=datetime.utcnow().year)
 
 @app.get("/upload")                       # endpoint = 'upload'
 def upload():
@@ -69,11 +71,6 @@ def upload_post():
     file.save(dest)
     process_recording(dest)
     return redirect(url_for("index"))
-
-@app.get("/")
-def index():
-    recs = Recording.query.order_by(Recording.created_at.desc()).all()
-    return render_template("index.html", recs=recs)
 
 @app.get("/recordings/<path:fname>")
 def serve_audio(fname):
