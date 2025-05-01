@@ -42,6 +42,11 @@ class Recording(db.Model):
 from transcription import process_recording  # noqa: E402  (import after db)
 
 # ---------- HTML routes ----------
+@app.get("/")
+def index():
+    recs = Recording.query.order_by(Recording.created_at.desc()).all()
+    return render_template("index.html", recs=recs)
+
 @app.get("/upload")                       # endpoint = 'upload'
 def upload():
     """Simple Tailwind-styled file-chooser page."""

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ title|default('Auto-Transcriber') }}</title>
+
+  <!-- Tailwind CDN in JIT mode -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col">
+
+  <header class="py-6 flex justify-center">
+    <img src="{{ url_for('static', filename='assets/ndid.png') }}"
+         alt="logo" class="h-16 object-contain">
+  </header>
+
+  <main class="flex-grow flex flex-col items-center px-4">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="text-center text-xs text-gray-500 py-4">
+    © {{ now().year }} Auto-Transcriber
+  </footer>
+</body>
+</html>

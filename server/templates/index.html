@@ -1,34 +1,48 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Recordings</title>
-  <link href="{{ url_for('static', filename='css/output.css') }}" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <style> html { font-family: 'Inter', sans-serif; } </style>
-</head>
-<body class="bg-gray-100 min-h-screen">
-  <div class="max-w-4xl mx-auto py-10 px-4">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold text-gray-800">📁 My Recordings</h1>
-      <a href="{{ url_for('upload') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow transition">
-        ➕ Upload New
-      </a>
-    </div>
+{% extends "base.html" %}
 
-    {% if recordings %}
-      <div class="grid md:grid-cols-2 gap-6">
-        {% for rec in recordings %}
-        <div class="bg-white rounded-xl shadow p-5 hover:shadow-md transition">
-          <div class="mb-2 text-sm text-gray-500">{{ rec.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</div>
-          <div class="text-lg font-semibold text-gray-800 mb-1">{{ rec.filename }}</div>
-          <a href="{{ url_for('view', id=rec.id) }}" class="inline-block text-blue-600 hover:underline text-sm">🔍 View details</a>
+{% block content %}
+<!-- upload card -->
+<form action="{{ url_for('upload_post') }}" method="post"
+      enctype="multipart/form-data"
+      class="w-full max-w-md bg-gray-800 rounded-xl p-6 shadow-lg flex flex-col gap-4">
+  <h1 class="text-xl font-semibold text-center">Upload recording</h1>
+
+  <input type="file" name="file" accept=".mp3"
+         class="file:mr-4 file:py-2 file:px-4
+                file:rounded file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-600 file:text-white
+                hover:file:bg-blue-700
+                bg-gray-700 text-gray-100 rounded-lg p-2">
+
+  <button class="bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg">
+    Send & transcribe
+  </button>
+</form>
+
+<!-- recordings list -->
+<section class="w-full max-w-3xl mt-12">
+  <h2 class="text-lg font-medium mb-4 text-center">My recordings</h2>
+
+  <ul class="space-y-4">
+    {% for r in recs %}
+      <li class="bg-gray-800 rounded-lg p-4 flex justify-between items-start">
+        <div>
+          <p class="font-medium">{{ r.filename }}</p>
+          <p class="text-sm text-gray-400">
+            {{ r.created_at.strftime('%Y-%m-%d %H:%M') }}
+          </p>
         </div>
-        {% endfor %}
-      </div>
+        <div class="flex gap-4">
+          <a href="{{ url_for('serve_audio', fname=r.filename) }}"
+             class="text-blue-400 hover:underline">audio</a>
+          <a href="{{ url_for('api_get', rec_id=r.id) }}"
+             class="text-blue-400 hover:underline">json</a>
+        </div>
+      </li>
     {% else %}
-      <p class="text-gray-500 text-center mt-20">No recordings yet.</p>
-    {% endif %}
-  </div>
-</body>
-</html>
+      <li class="text-gray-500 text-center">No recordings yet.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

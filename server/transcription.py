@@ -2,6 +2,11 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+import torch
+torch.backends.cuda.enable_flash_sdp(False)
+torch.backends.cuda.enable_mem_efficient_sdp(False)
+torch.backends.cuda.enable_math_sdp(True)
+
 import whisper
 from transformers import pipeline
 
