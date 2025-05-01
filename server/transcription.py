@@ -19,7 +19,7 @@ from transformers import pipeline
 from models import db, Recording            # SINGLE source of truth
 
 # --- model loading (once at import time) ---
-WHISPER_MODEL = whisper.load_model("base")  # or use env var
+WHISPER_MODEL = whisper.load_model("turbo")  # or use env var
 SUMMARIZER_ID = "cahya/t5-base-indonesian-summarization-cased"
 summarizer = pipeline(
     "summarization",
