@@ -1,27 +1,56 @@
 import os
-import time
+from datetime import datetime
+from pathlib import Path
+
 import whisper
-import whisper.audio as wa
+from transformers import pipeline
 
-os.environ["PATH"] = r"C:\ProgramData\chocolatey\bin" + os.pathsep + os.environ.get("PATH", "")
+from models import db, Recording   # models are defined in app.py
 
-model = whisper.load_model("turbo")  # choose "base" or "medium" if you have more CPU power
+# ---------- model loading (done once at startup) ----------
+WHISPER_MODEL_NAME = os.getenv("WHISPER_MODEL", "base")
+whisper_model = whisper.load_model(WHISPER_MODEL_NAME)
 
-def transcribe_audio(path: str) -> str:
-    # load  duration log (unchanged)
-    start_load = time.time()
-    audio = wa.load_audio(path)
-    rec_dur = len(audio) / wa.SAMPLE_RATE
-    print(f"[] Recording duration: {rec_dur:.2f}s (loaded in {time.time() - start_load:.2f}s)")
+SUMMARIZER_ID = os.getenv(
+    "SUMMARIZER_ID", "cahya/t5-base-indonesian-summarization-cased"
+)
+summarizer = pipeline(
+    "summarization",
+    model=SUMMARIZER_ID,
+    tokenizer=SUMMARIZER_ID,
+    device=-1,            # CPU-only for the prototype
+    use_fast=False,
+)
 
-    # now force Whisper to transcribe in Indonesian
-    start_trans = time.time()
-    result = model.transcribe(
-        path,
-        language="id",      # ← force output to Bahasa Indonesia
-        task="transcribe"   # ← default, but explicit is clearer
+# ---------- helper functions ----------
+def transcribe_audio(filepath: Path) -> str:
+    """Return plain-text transcript produced by Whisper."""
+    result = whisper_model.transcribe(str(filepath))
+    return result["text"].strip()
+
+
+def summarize_text(text: str) -> str:
+    """Chunk the transcript and build a bullet-point summary."""
+    chunks = [text[i : i + 800] for i in range(0, len(text), 800)]
+    bullets = []
+    for c in chunks:
+        s = summarizer(c, max_length=120, min_length=30, do_sample=False)[0][
+            "summary_text"
+        ]
+        bullets.append(f"- {s.strip()}")
+    return "\n".join(bullets)
+
+
+def process_recording(filepath: Path) -> Recording:
+    """Full pipeline: Whisper → summary → save row → return row."""
+    transcript = transcribe_audio(filepath)
+    summary = summarize_text(transcript)
+    rec = Recording(
+        filename=filepath.name,
+        transcript=transcript,
+        summary=summary,
+        created_at=datetime.utcnow(),
     )
-    trans_time = time.time() - start_trans
-    print(f"[] Transcription took: {trans_time:.2f}s")
-
-    return result["text"]
+    db.session.add(rec)
+    db.session.commit()
+    return rec

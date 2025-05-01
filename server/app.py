@@ -1,79 +1,104 @@
 import os
-import time
-from flask import Flask, request, redirect, url_for, render_template, send_from_directory
-from flask_login import login_required
 from datetime import datetime
+from pathlib import Path
 
-from auth import auth_bp, login_mgr
-from models import db, Recording
-from transcription import transcribe_audio
-from summarization import summarize_text
+from flask import (
+    Flask,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    send_from_directory,
+    jsonify,
+    abort,
+)
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.utils import secure_filename
 
-def create_app():
-    app = Flask(__name__, template_folder="templates")
-    app.config.update(
-      SECRET_KEY="devkey",
-      SQLALCHEMY_DATABASE_URI="sqlite:///data.db",
-      UPLOAD_FOLDER="../recordings"
+# ---------- basic Flask + SQLite setup ----------
+BASE_DIR = Path(__file__).resolve().parent
+UPLOAD_DIR = BASE_DIR / "recordings"
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+app = Flask(__name__)
+app.config.update(
+    SECRET_KEY=os.getenv("SECRET_KEY", "devkey"),
+    UPLOAD_FOLDER=str(UPLOAD_DIR),
+    SQLALCHEMY_DATABASE_URI=f"sqlite:///{BASE_DIR/'db.sqlite3'}",
+    SQLALCHEMY_TRACK_MODIFICATIONS=False,
+)
+
+db = SQLAlchemy(app)
+
+# ---------- models ----------
+class Recording(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(256), nullable=False)
+    transcript = db.Column(db.Text)
+    summary = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# ---------- business logic ----------
+from transcription import process_recording  # noqa: E402  (import after db)
+
+# ---------- HTML routes ----------
+@app.route("/")
+def index():
+    recs = Recording.query.order_by(Recording.created_at.desc()).all()
+    return render_template("index.html", recs=recs)
+
+
+@app.route("/upload", methods=["POST"])
+def upload_form():
+    file = request.files["file"]
+    if not file.filename.lower().endswith(".mp3"):
+        return "Only .mp3 files are accepted", 400
+    dest = UPLOAD_DIR / secure_filename(file.filename)
+    file.save(dest)
+    process_recording(dest)
+    return redirect(url_for("index"))
+
+
+@app.route("/recordings/<path:fname>")
+def serve_audio(fname):
+    return send_from_directory(app.config["UPLOAD_FOLDER"], fname)
+
+
+# ---------- JSON API ----------
+API_KEY = os.getenv("API_KEY")  # optional
+
+@app.route("/api/v1/recordings", methods=["POST"])
+def api_upload():
+    # header-based key (swap for JWT/OAuth when you like)
+    if API_KEY and request.headers.get("X-API-Key") != API_KEY:
+        abort(401, description="bad or missing X-API-Key")
+
+    if "file" not in request.files:
+        return jsonify(error="missing file field"), 400
+    f = request.files["file"]
+    if not f.filename.lower().endswith(".mp3"):
+        return jsonify(error="only .mp3 accepted"), 400
+
+    dest = UPLOAD_DIR / secure_filename(f.filename)
+    f.save(dest)
+    rec = process_recording(dest)
+    return jsonify(id=rec.id), 201
+
+
+@app.route("/api/v1/recordings/<int:rec_id>")
+def api_get(rec_id):
+    rec = Recording.query.get_or_404(rec_id)
+    return jsonify(
+        id=rec.id,
+        filename=rec.filename,
+        transcript=rec.transcript,
+        summary=rec.summary,
+        created_at=rec.created_at.isoformat() + "Z",
     )
 
-    db.init_app(app)
-    login_mgr.init_app(app)
-    app.register_blueprint(auth_bp)
 
-    @app.before_first_request
-    def init_db():
-        os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
-        db.create_all()
-
-    @app.route("/")
-    @login_required
-    def index():
-        recs = Recording.query.order_by(Recording.timestamp.desc()).all()
-        return render_template("index.html", recordings=recs)
-
-    @app.route("/upload", methods=["GET", "POST"])
-    @login_required
-    def upload():
-        if request.method == "POST":
-            f = request.files["audio"]
-            timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-            filename = f"{timestamp}_{f.filename}"
-            path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-            f.save(path)
-
-            # Measure end-to-end processing time
-            t0 = time.time()
-            txt = transcribe_audio(path)
-            summary = summarize_text(txt)
-            print(f"[+] Total processing (transcribe+summarize): {time.time() - t0:.2f}s")
-
-            rec = Recording(
-                filename=filename,
-                transcript=txt,
-                summary=summary,
-                timestamp=datetime.utcnow()
-            )
-            db.session.add(rec)
-            db.session.commit()
-            return redirect(url_for("index"))
-
-        return render_template("upload.html")
-
-    @app.route("/recordings/<filename>")
-    @login_required
-    def get_audio(filename):
-        return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
-
-    @app.route("/view/<int:id>")
-    @login_required
-    def view(id):
-        r = Recording.query.get_or_404(id)
-        return render_template("view.html", rec=r)
-
-    return app
-
+# ---------- bootstrap ----------
 if __name__ == "__main__":
-    app = create_app()
-    app.config["DEBUG"] = True
-    app.run(host="0.0.0.0", port=8000)
+    with app.app_context():
+        db.create_all()
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
