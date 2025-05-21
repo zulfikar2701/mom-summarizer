@@ -87,5 +87,5 @@ def api_get(rec_id):
 # ---------- bootstrap ----------
 if __name__ == "__main__":
     with app.app_context():
-        db.create_all()
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
+        db.create_all()          # create tables once, only in the main process
+    app.run(debug=False, host="0.0.0.0", port=5000)

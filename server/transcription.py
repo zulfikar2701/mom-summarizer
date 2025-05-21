@@ -1,59 +1,70 @@
-# server/transcription.py
-"""
-Whisper → transcript → Indonesian T5 summary.
-Called from app.py for both form and API uploads.
-"""
-
-# --- optional: work-around PyTorch flash-attention bug on CPU ---
-import torch
-torch.backends.cuda.enable_flash_sdp(False)
-torch.backends.cuda.enable_mem_efficient_sdp(False)
-torch.backends.cuda.enable_math_sdp(True)
-
-# --- stdlib / third-party ---
 from pathlib import Path
 import whisper
-from transformers import pipeline
+from vllm import LLM, SamplingParams
 
-# --- our database & model ---
-from models import db, Recording            # SINGLE source of truth
 
-# --- model loading (once at import time) ---
-WHISPER_MODEL = whisper.load_model("turbo")  # or use env var
-SUMMARIZER_ID = "cahya/t5-base-indonesian-summarization-cased"
-summarizer = pipeline(
-    "summarization",
-    model=SUMMARIZER_ID,
-    tokenizer=SUMMARIZER_ID,
-    device=-1,
-    use_fast=False,
+# ------------------------------------------------------------------
+# 1.  whisper transcription
+# ------------------------------------------------------------------
+WHISPER_MODEL = whisper.load_model("turbo")
+
+
+# ------------------------------------------------------------------
+# 2.  lazy-initialised vLLM (spawn-safe)
+# ------------------------------------------------------------------
+_llm = None        # will be built on first use
+
+_PARAMS = SamplingParams(
+    temperature=0.2,
+    top_p=0.95,
+    max_tokens=256,
 )
 
-# --- helper functions ---
-def transcribe_audio(path: Path) -> str:
-    """Return plaintext transcript produced by Whisper."""
-    result = WHISPER_MODEL.transcribe(str(path))
-    return result["text"].strip()
+
+def get_llm() -> LLM:
+    """Create the vLLM engine only once, the first time it is needed."""
+    global _llm
+    if _llm is None:
+        _llm = LLM(
+            model="google/gemma-2-2b-it",
+            dtype="bfloat16",
+            gpu_memory_utilization=0.85,
+            max_model_len=1024,
+        )
+    return _llm
+
+
+# ------------------------------------------------------------------
+# 3.  helpers
+# ------------------------------------------------------------------
+def transcribe_audio(wav_path: Path) -> str:
+    """Run Whisper on an audio file and return raw transcript text."""
+    result = WHISPER_MODEL.transcribe(str(wav_path))
+    return result["text"]
+
 
 def summarize_text(text: str) -> str:
-    chunks  = [text[i : i + 800] for i in range(0, len(text), 800)]
+    """Summarise a long Indonesian transcript into ± 5 bullet points."""
+    prompt = (
+        "Ringkas teks berikut menjadi 5 poin penting yang singkat "
+        "dalam bahasa Indonesia. Gunakan format bullet (-):\n\n"
+        f"{text}\n\nRingkasan:\n-"
+    )
+    llm = get_llm()
+    out = llm.generate([prompt], _PARAMS)[0].outputs[0].text
     bullets = [
-        "- " + summarizer(c, max_length=120, min_length=30, do_sample=False)[0]["summary_text"].strip()
-        for c in chunks
+        "- " + line.lstrip("- ").strip()
+        for line in out.splitlines()
+        if line.strip()
     ]
     return "\n".join(bullets)
 
-def process_recording(path: Path) -> Recording:
-    """Full pipeline: transcribe, summarise, write DB row, return it."""
-    transcript = transcribe_audio(path)
-    summary    = summarize_text(transcript)
 
-    rec = Recording(
-        filename   = path.name,
-        transcript = transcript,
-        summary    = summary,
-        # created_at auto-filled by column default
-    )
-    db.session.add(rec)
-    db.session.commit()
-    return rec
+# ------------------------------------------------------------------
+# 4.  public pipeline entry-point
+# ------------------------------------------------------------------
+def process_recording(wav_path: Path) -> str:
+    """Full pipeline: Whisper ➜ Gemma summary."""
+    transcript = transcribe_audio(wav_path)
+    summary = summarize_text(transcript)
+    return summary
