@@ -46,12 +46,12 @@
       {% endif %}
 
       <!-- links -->
-      <div class="mt-4 flex justify-end gap-6 text-blue-400 text-sm">
-        <a href="{{ url_for('download_audio', rec_id=rec.id) }}"
-           class="hover:underline">audio</a>
-        <a href="{{ url_for('api_get_rec', rec_id=rec.id) }}"
-           class="hover:underline">json</a>
-      </div>
+<div class="mt-4 flex justify-end gap-6 text-blue-400 text-sm">
+  <a href="{{ url_for('download_audio', rec_id=rec.id) }}"
+     class="hover:underline">audio</a>
+  <a href="{{ url_for('api_get',       rec_id=rec.id) }}"
+     class="hover:underline">json</a>
+</div>
     </li>
   {% endfor %}
 </ul>

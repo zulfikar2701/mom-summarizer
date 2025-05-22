@@ -63,8 +63,8 @@ def summarize_text(text: str) -> str:
 # ------------------------------------------------------------------
 # 4.  public pipeline entry-point
 # ------------------------------------------------------------------
-def process_recording(wav_path: Path) -> str:
-    """Full pipeline: Whisper ➜ Gemma summary."""
+def process_recording(wav_path: Path) -> tuple[str, str]:
+    """Full pipeline → (transcript, summary)."""
     transcript = transcribe_audio(wav_path)
-    summary = summarize_text(transcript)
-    return summary
+    summary    = summarize_text(transcript)
+    return transcript, summary

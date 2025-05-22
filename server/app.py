@@ -17,7 +17,7 @@ app = Flask(__name__)
 app.config.update(
     SECRET_KEY=os.getenv("SECRET_KEY", "devkey"),
     UPLOAD_FOLDER=str(UPLOAD_DIR),
-    SQLALCHEMY_DATABASE_URI=f"sqlite:///{BASE_DIR/'db.sqlite3'}",
+    SQLALCHEMY_DATABASE_URI = f"sqlite:///{ (BASE_DIR / 'db.sqlite3').as_posix() }",
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
 )
 
@@ -26,9 +26,9 @@ db.init_app(app)                               # DON’T create a new SQLAlchemy
 # ---------- HTML routes ----------
 @app.get("/")
 def index():
-    recs = Recording.query.order_by(Recording.created_at.desc()).all()
-    return render_template("index.html", recs=recs,
-                           current_year=datetime.utcnow().year)
+    recordings = Recording.query.order_by(Recording.created_at.desc()).all()
+    return render_template("index.html", recordings=recordings,
+                        current_year=datetime.utcnow().year)
 
 @app.get("/upload")
 def upload():
@@ -47,10 +47,29 @@ def upload_post():
     file = request.files.get("file")
     if not file or not file.filename.lower().endswith(".mp3"):
         return "Only .mp3 files are accepted", 400
+
     dest = UPLOAD_DIR / secure_filename(file.filename)
     file.save(dest)
-    process_recording(dest)
+
+    # run Whisper ➜ Gemma
+    transcript, summary = process_recording(dest)
+
+    rec = Recording(
+        filename   = file.filename,
+        transcript = transcript,
+        summary    = summary,
+    )
+    db.session.add(rec)
+    db.session.commit()
+
     return redirect(url_for("index"))
+
+
+@app.get("/download/<int:rec_id>")
+def download_audio(rec_id):
+    rec = db.session.get(Recording, rec_id) or abort(404)
+    return send_from_directory(app.config["UPLOAD_FOLDER"], rec.filename)
+
 
 @app.get("/recordings/<path:fname>")
 def serve_audio(fname):
@@ -70,7 +89,15 @@ def api_upload():
 
     dest = UPLOAD_DIR / secure_filename(f.filename)
     f.save(dest)
-    rec = process_recording(dest)
+
+    transcript, summary = process_recording(dest)
+
+    rec = Recording(filename=f.filename,
+                    transcript=transcript,
+                    summary=summary)
+    db.session.add(rec)
+    db.session.commit()
+
     return jsonify(id=rec.id), 201
 
 @app.get("/api/v1/recordings/<int:rec_id>")
