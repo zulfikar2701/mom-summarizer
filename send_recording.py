@@ -14,7 +14,7 @@ import pathlib
 
 import requests
 
-API_ROOT = os.getenv("API_URL", "http://13.251.26.7:8000/api/v1/recordings")
+API_ROOT = os.getenv("API_URL", "http://43.218.46.58:5000/api/v1/recordings")
 API_KEY = os.getenv("API_KEY", "supersecret")
 
 def upload(mp3: pathlib.Path) -> int:

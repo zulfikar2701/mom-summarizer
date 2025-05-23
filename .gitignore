@@ -8,3 +8,4 @@ server/tailwind.exe
 server/db.sqlite3
 server/recordings/pssi-pers.mp3
 recordings/testing.mp3
+*.mp3
