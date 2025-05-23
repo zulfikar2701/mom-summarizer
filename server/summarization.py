@@ -34,9 +34,9 @@ def _call_vllm(prompt: str, max_tokens: int = 256) -> str:
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user",
-                 "content": f"Ringkas percakapan berikut menjadi poin-poin:\n\n{prompt}"}
+                 "content": f"Ringkas percakapan berikut menjadi poin-poin yang dapat dimengerti:\n\n{prompt}"}
             ],
-            "temperature": 0.2,
+            "temperature": 0,
             "max_tokens": max_tokens,
         }),
         timeout=120,
