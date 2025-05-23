@@ -17,9 +17,13 @@ VLLM_ENDPOINT = os.getenv("VLLM_ENDPOINT",
                           "http://localhost:8001/v1/chat/completions")
 LLM_MODEL     = os.getenv("LLM_MODEL", "google/gemma-2-2b-it")
 
-SYSTEM_PROMPT = ("You are an assistant who writes short, clear bullet-point "
-                 "summaries of Indonesian or English meeting transcripts. "
-                 "Keep each bullet concise but complete.")
+SYSTEM_PROMPT = (
+    "Adopt the role of an expert assistant skilled in synthesizing information. "
+    "Your task is to create a concise yet thorough summary of meeting notes. "
+    "This involves distilling the main points, decisions, action items, and next steps discussed during the meeting. "
+    "The summary should be structured in a way that provides clarity and insight for someone who did not attend the meeting. "
+    "Provide the summary in both English and Indonesian."
+)
 
 def _call_vllm(prompt: str, max_tokens: int = 256) -> str:
     resp = requests.post(
