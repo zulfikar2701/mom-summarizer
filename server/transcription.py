@@ -15,7 +15,7 @@ WHISPER_MODEL = whisper.load_model("turbo")
 _llm = None        # will be built on first use
 
 _PARAMS = SamplingParams(
-    temperature=0.0,
+    temperature=0.2,
     top_p=0.95,
     max_tokens=256,
 )
@@ -44,14 +44,10 @@ def transcribe_audio(wav_path: Path) -> str:
 
 
 def summarize_text(text: str) -> str:
-    """Summarise a meeting based on the transcript text and have full understanding of the meeting context"""
+    """Summarise a long Indonesian transcript into ± 5 bullet points."""
     prompt = (
-    "Adopt the role of an expert assistant skilled in synthesizing information. "
-    "Your task is to create a concise yet thorough summary of meeting notes. "
-    "This involves distilling the main points, decisions, action items, and next steps discussed during the meeting. "
-    "The summary should be structured in a way that provides clarity and insight for someone who did not attend the meeting. "
-    "Provide the summary in Indonesian.\n\n"
-    "Keep the word context in mind and make sure to include all the important points.\n\n"
+        "Ringkas teks berikut menjadi 5 poin penting yang singkat "
+        "dalam bahasa Indonesia. Gunakan format bullet (-):\n\n"
         f"{text}\n\nRingkasan:\n-"
     )
     llm = get_llm()
@@ -67,8 +63,8 @@ def summarize_text(text: str) -> str:
 # ------------------------------------------------------------------
 # 4.  public pipeline entry-point
 # ------------------------------------------------------------------
-def process_recording(wav_path: Path) -> tuple[str, str]:
-    """Full pipeline → (transcript, summary)."""
+def process_recording(wav_path: Path) -> str:
+    """Full pipeline: Whisper ➜ Gemma summary."""
     transcript = transcribe_audio(wav_path)
-    summary    = summarize_text(transcript)
-    return transcript, summary
+    summary = summarize_text(transcript)
+    return summary
