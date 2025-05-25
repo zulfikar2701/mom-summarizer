@@ -2,6 +2,18 @@ from pathlib import Path
 import whisper
 from vllm import LLM, SamplingParams
 
+# ------------------------------------------------------------------
+# 0.  Timestamp helpers
+# ------------------------------------------------------------------
+
+def format_time(seconds: float) -> str:
+    """Convert seconds to HH:MM:SS or MM:SS."""
+    h, rem = divmod(int(seconds), 3600)
+    m, s   = divmod(rem, 60)
+    if h:
+        return f"{h:02d}:{m:02d}:{s:02d}"
+    return f"{m:02d}:{s:02d}"
+
 
 # ------------------------------------------------------------------
 # 1.  whisper transcription
@@ -37,34 +49,33 @@ def get_llm() -> LLM:
 # ------------------------------------------------------------------
 # 3.  helpers
 # ------------------------------------------------------------------
-def transcribe_audio(wav_path: Path) -> str:
-    """Run Whisper on an audio file and return raw transcript text."""
+def transcribe_audio(wav_path: Path) -> tuple[str, list[dict]]:
+    """Run Whisper on an audio file and return (text, segments)."""
     result = WHISPER_MODEL.transcribe(str(wav_path))
-    return result["text"]
+    return result["text"], result["segments"]
 
-
-def summarize_text(text: str) -> str:
-    """Summarise a long Indonesian transcript into ± 5 bullet points."""
-    prompt = (
-        "Ringkas teks berikut menjadi 5 poin penting yang singkat "
-        "dalam bahasa Indonesia. Gunakan format bullet (-):\n\n"
-        f"{text}\n\nRingkasan:\n-"
-    )
+def summarize_segments(segments: list[dict]) -> str:
+    """Summarise a long Indonesian transcript into bullet points."""
     llm = get_llm()
-    out = llm.generate([prompt], _PARAMS)[0].outputs[0].text
-    bullets = [
-        "- " + line.lstrip("- ").strip()
-        for line in out.splitlines()
-        if line.strip()
-    ]
+    bullets = []
+    for seg in segments:
+        ts = format_time(seg["start"])
+        prompt = (
+            "Ringkas teks berikut menjadi poin-poin penting yang singkat "
+            "dalam bahasa Indonesia. Gunakan format bullet (-):\n\n"
+            f"{seg}\n\nRingkasan:\n-"
+        )
+        out = llm.generate([prompt], _PARAMS)[0].outputs[0].text.strip()
+        # strip any leading “– ” or bullets, then prefix timestamp
+        summary_line = out.lstrip("- ").strip()
+        bullets.append(f"[{ts}] {summary_line}")
     return "\n".join(bullets)
-
 
 # ------------------------------------------------------------------
 # 4.  public pipeline entry-point
 # ------------------------------------------------------------------
 def process_recording(wav_path: Path) -> str:
     """Full pipeline: Whisper ➜ Gemma summary."""
-    transcript = transcribe_audio(wav_path)
-    summary = summarize_text(transcript)
-    return summary
+    transcript, segments = transcribe_audio(wav_path)
+    summary = summarize_segments(segments)
+    return transcript, summary
