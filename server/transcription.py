@@ -60,15 +60,26 @@ def summarize_segments(segments: list[dict]) -> str:
     bullets = []
     for seg in segments:
         ts = format_time(seg["start"])
+        # ask for exactly one clear sentence, no bullets or numbering
         prompt = (
-            "Ringkas teks berikut menjadi poin-poin penting yang singkat "
+            "Adopt the role of an expert assistant skilled in synthesizing information. "
+            "Your task is to create a concise yet thorough summary of meeting notes. "
+            "This involves distilling the main points, decisions, action items, and next steps discussed during the meeting. "
+            "The summary should be structured in a way that provides clarity and insight for someone who did not attend the meeting. "
+            "Provide the summary in both English and Indonesian."
             "dalam bahasa Indonesia. Gunakan format bullet (-):\n\n"
             f"{seg}\n\nRingkasan:\n-"
         )
         out = llm.generate([prompt], _PARAMS)[0].outputs[0].text.strip()
-        # strip any leading “– ” or bullets, then prefix timestamp
-        summary_line = out.lstrip("- ").strip()
-        bullets.append(f"[{ts}] {summary_line}")
+        # keep only the first line in case the model spills multiple
+        # avoid crashing if LLM returns an empty string
+        lines = [l for l in out.splitlines() if l.strip()]
+        if lines:
+            first_line = lines[0].lstrip("- ").strip()
+        else:
+            # fallback to the first sentence of the raw segment text
+            first_line = seg["text"].split(".", 1)[0].strip()
+        bullets.append(f"[{ts}] {first_line}")
     return "\n".join(bullets)
 
 # ------------------------------------------------------------------
