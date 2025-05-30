@@ -1,5 +1,6 @@
-# extra index where NVIDIA publishes all cu124 wheels
-EXTRA="--extra-index-url https://download.pytorch.org/whl/cu124"
+# requirements.txt
+# Wheels for CUDA 12.4 are here:
+--extra-index-url https://download.pytorch.org/whl/cu124
 
 Flask==2.0.3
 Werkzeug==2.0.3
@@ -7,14 +8,16 @@ Flask-Login==0.6.3
 Flask-SQLAlchemy==2.5.1
 SQLAlchemy==1.4.48
 protobuf>=3.19.0
-numpy==1.23.5
+numpy==1.26.4
 openai-whisper
+whisperx
 sentencepiece
-transformers==4.35.0
+transformers==4.52.3 
 
+# Torch first – pulls the matching Triton wheel automatically
+torch
 
-# Torch first – this pulls its exact matching triton-3.2 automatically
-torch==2.6.0+cu124 $EXTRA
-
-# Now vLLM – wheel compiled against Torch-2.6/cu124
+# vLLM wheel that’s compiled against Torch 2.6 / CUDA 12.4
 vllm==0.8.5.post1
+
+nvidia-cudnn-cu12
