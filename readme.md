@@ -13,9 +13,9 @@ Python 3.12+, FFmpeg, Git, (optional) virtualenv.
 ## ⚙️ Install
 
 ```bash
-git clone https://github.com/your-username/auto-transcriber.git
-cd auto-transcriber
-python3 -m venv .venv && source .venv/bin/activate  # activate venv
+git clone
+cd mom=summarizer
+python3 -m venv .venv && source .venv/bin/activate  (Python 3.12 needed) # activate venv
 pip install -r server/requirements.txt pydub sounddevice numpy argparse requests
 ```
 
